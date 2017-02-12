@@ -23,6 +23,9 @@ type MilkContainer struct{
 
         ContainerID string `json:"containerid"`
         User string        `json:"user"`
+
+        Litres string        `json:"litres"`
+
 }
 
 type SupplyCoin struct{
@@ -30,6 +33,15 @@ type SupplyCoin struct{
         CoinID string `json:"coinid"`
         User string        `json:"user"`
 }
+
+type Order struct{
+        OrderID string `json:"orderid"`
+       User string `json:"user"`
+       Status string `json:"status"`
+       Litres string    `json:"litres"`
+}
+
+
 
 func main() {
 	err := shim.Start(new(SimpleChaincode))
@@ -94,12 +106,12 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 func (t *SimpleChaincode) Create_milkcontainer(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 var err error
 
-// "1x22" "supplier" 
-// args[0] args[1] 
+// "1x22" "supplier" 20 
+// args[0] args[1] args[2] 
 
 id := args[0]
 user := args[1]
-
+litres :=args[2] 
 milkAsBytes, err := stub.GetState(id) 
 if err != nil {
 		return nil, errors.New("Failed to get details og given id") 
@@ -117,7 +129,7 @@ if res.ContainerID == id{
 
 res.ContainerID = id
 res.User = user
-
+res.Litres = litres
 milkAsBytes, _ =json.Marshal(res)
 
 stub.PutState(id,milkAsBytes)
@@ -225,10 +237,167 @@ return valAsbytes, nil										       //send it onward
 }
 
 
+func (t *SimpleChaincode) Order_milk(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+
+
+Openorder := Order{}
+
+Openorder.User = "Market"
+Openorder.Status = "pending"
+Openorder.OrderID = "abcd"
+Openorder.Litres = args[0]
+
+orderasbytes,_ := json.Marshal(Openorder)
+stub.PutState(Openorder.OrderID,orderasbytes)
+var a []string
+a[0] = Openorder.OrderID
+t.init_supplier(stub,a)
+return nil,nil
+}
+
+
+
+func (t *SimpleChaincode) init_supplier(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+
+
+orderasbytes, _ := stub.GetState(args[0])
+
+
+Performorder := Order{}
+
+json.Unmarshal(orderasbytes, &Performorder)
+
+
+containerasbytes, _ := stub.GetState("1x23")
+
+
+Container := MilkContainer{}
+
+json.Unmarshal(containerasbytes, &Container)
+
+if(Container.Litres == Performorder.Litres){
+
+fmt.Println("Hurray, we got want u want")
+
+Performorder.Status="received"
+orderasbytes,_=json.Marshal(Performorder)
+stub.PutState(args[0],orderasbytes)
+var a []string
+a[0] = args[0]
+
+a[1] ="1x23" 
+t.init_logistics(stub,a)
+return nil,nil
+
+} else{
+fmt.Println("Sorry")
+
+return nil,nil
+
+}
+}
+
+func (t *SimpleChaincode) init_logistics(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+
+orderid := args[0]
+fmt.Println("Recevied order for shipping is %s ",orderid)
+
+orderasbytes, _ := stub.GetState(orderid)
+Shiporder := Order{}
+json.Unmarshal(orderasbytes, &Shiporder)
+Shiporder.Status = "Shipped and in transit"
+
+orderasbytes,_ = json.Marshal(Shiporder)
+
+stub.PutState(orderid, orderasbytes)
+var a []string
+a[0] = args[0]
+
+a[1] ="1x23"
+
+t.completedelivery(stub,a)
+return nil,nil
+}
+
+
+
+func (t *SimpleChaincode) completedelivery(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+
+orderid := args[0]
+
+
+orderasbytes, _ := stub.GetState(orderid)
+Shiporder := Order{}
+json.Unmarshal(orderasbytes, &Shiporder)
+milkasbytes, _ := stub.GetState(args[1])
+milkcont := MilkContainer{}
+json.Unmarshal(milkasbytes, &milkcont)
+milkcont.User="Market"
+Shiporder.Status = "Delivered"
+
+orderasbytes,_ = json.Marshal(Shiporder)
+
+stub.PutState(orderid, orderasbytes)
+
+milkasbytes,_ = json.Marshal(milkcont)
+stub.PutState(args[1],milkasbytes)
+
+var a []string
+a[0] = args[0]
+
+a[1] =args[1]
 
 
 
 
+
+
+t.checkproduct(stub,a)
+return nil,nil
+}
+
+func (t *SimpleChaincode) checkproduct(stub shim.ChaincodeStubInterface, args []string) ([]byte, error){
+
+
+milkcontainerid := args[1]
+
+
+milkasbytes, _ := stub.GetState(milkcontainerid)
+milkcontainer := MilkContainer{}
+json.Unmarshal(milkasbytes,&milkcontainer)
+
+if(milkcontainer.User == "Market"){
+var a []string
+a[0] = "1x245"
+       t.init_cointransfer(stub,a)
+       return nil,nil
+}else{
+
+      return nil,errors.New("Couldn't transfer,please try again")
+}
+
+return nil,nil
+
+}
+
+func (t *SimpleChaincode) init_cointransfer(stub shim.ChaincodeStubInterface, args []string) ([]byte, error){
+
+coinid := args[0]
+
+coinasbytes, _ := stub.GetState(coinid)
+
+Finalcoin:= SupplyCoin{}
+
+json.Unmarshal(coinasbytes,&Finalcoin)
+
+Finalcoin.User = "Supplier"
+
+coinasbytes,_ = json.Marshal(Finalcoin)
+stub.PutState(coinid, coinasbytes)
+
+return nil,nil
+
+}
 
 
 
