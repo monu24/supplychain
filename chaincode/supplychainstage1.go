@@ -33,14 +33,14 @@ type SupplyCoin struct{
         CoinID string `json:"coinid"`
         User string        `json:"user"`
 }
-
+/*
 type Order struct{
         OrderID string `json:"orderid"`
        User string `json:"user"`
        Status string `json:"status"`
        Litres string    `json:"litres"`
 }
-
+*/
 
 
 func main() {
@@ -235,7 +235,7 @@ func (t *SimpleChaincode) read(stub shim.ChaincodeStubInterface, args []string) 
 
 return valAsbytes, nil										       //send it onward
 }
-
+/*
 
 func (t *SimpleChaincode) Order_milk(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 
@@ -400,4 +400,4 @@ return nil,nil
 }
 
 
-
+*/
